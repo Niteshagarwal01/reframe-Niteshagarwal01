@@ -281,15 +281,33 @@ useEffect(() => {
   });
 }, [stepIndex, visible, measureTarget, dismiss]);
 
-  // Re-measure on resize
+  const updatePosition = useCallback(() => {
+    const el = document.getElementById(TOUR_STEPS[stepIndex]?.targetId ?? "");
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setTargetRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    }
+  }, [stepIndex]);
+
+  // Re-measure on resize and scroll
   useEffect(() => {
-  if (!visible) return;
-  const onResize = () => {
-    measureTarget(TOUR_STEPS[stepIndex]?.targetId ?? "").then(setTargetRect);
-  };
-  window.addEventListener("resize", onResize);
-  return () => window.removeEventListener("resize", onResize);
-}, [visible, stepIndex, measureTarget]);
+    if (!visible) return;
+    
+    let frame: number;
+    const handleUpdate = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(updatePosition);
+    };
+
+    window.addEventListener("resize", handleUpdate);
+    window.addEventListener("scroll", handleUpdate, true); // true for capturing phase to catch all scrolls
+
+    return () => {
+      window.removeEventListener("resize", handleUpdate);
+      window.removeEventListener("scroll", handleUpdate, true);
+      cancelAnimationFrame(frame);
+    };
+  }, [visible, updatePosition]);
 
   // Keyboard support
   useEffect(() => {
