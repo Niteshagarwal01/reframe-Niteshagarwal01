@@ -328,25 +328,34 @@ export default function OnboardingTour() {
     };
   }, [stepIndex, visible, measureTarget, dismiss, currentStep]);
 
+  const updatePosition = useCallback(() => {
+    const el = document.getElementById(TOUR_STEPS[stepIndex]?.targetId ?? "");
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setTargetRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    }
+  }, [stepIndex]);
+
   // Re-measure on resize or scroll so spotlight stays anchored to target.
   // requestAnimationFrame prevents layout thrashing on rapid scroll/resize events.
   useEffect(() => {
     if (!visible) return;
-    let rafId: number;
-    const remeasure = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        measureTarget(TOUR_STEPS[stepIndex]?.targetId ?? "").then(setTargetRect);
-      });
+    
+    let frame: number;
+    const handleUpdate = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(updatePosition);
     };
-    window.addEventListener("resize", remeasure);
-    window.addEventListener("scroll", remeasure, true);
+
+    window.addEventListener("resize", handleUpdate);
+    window.addEventListener("scroll", handleUpdate, true); // true for capturing phase to catch all scrolls
+
     return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener("resize", remeasure);
-      window.removeEventListener("scroll", remeasure, true);
+      window.removeEventListener("resize", handleUpdate);
+      window.removeEventListener("scroll", handleUpdate, true);
+      cancelAnimationFrame(frame);
     };
-  }, [visible, stepIndex, measureTarget]);
+  }, [visible, updatePosition]);
 
   // Keyboard support
   useEffect(() => {
